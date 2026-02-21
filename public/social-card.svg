@@ -1,0 +1,50 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Beautiful Warm Background Gradient -->
+    <radialGradient id="bg" cx="50%" cy="0%" r="100%" fx="50%" fy="0%">
+      <stop offset="0%" stop-color="#fdf4ff"/>
+      <stop offset="50%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </radialGradient>
+
+    <!-- Filters for that modern aesthetic -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="25" stdDeviation="35" flood-color="#b45309" flood-opacity="0.15" />
+    </filter>
+    
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="60" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle Ambient Glow -->
+  <circle cx="600" cy="220" r="180" fill="#fef08a" filter="url(#glow)" opacity="0.6"/>
+
+  <!-- The Scaled Logo -->
+  <g transform="translate(325, 10) scale(2.5)" filter="url(#shadow)">
+    <!-- Document Base with shadow -->
+    <path d="M70 45 H115 L140 70 V125 C140 127.76 137.76 130 135 130 H75 C72.24 130 70 127.76 70 125 V45Z" fill="#ffffff" stroke="#334155" stroke-width="5" stroke-linejoin="round"/>
+    <!-- Folded Corner -->
+    <path d="M115 45 V65 C115 67.76 117.24 70 120 70 H140 L115 45Z" fill="#F8FAFC" stroke="#334155" stroke-width="5" stroke-linejoin="round"/>
+    <!-- Text Lines -->
+    <path d="M85 85 H125" stroke="#CBD5E1" stroke-width="5" stroke-linecap="round"/>
+    <path d="M85 105 H110" stroke="#CBD5E1" stroke-width="5" stroke-linecap="round"/>
+    <!-- Sun -->
+    <circle cx="150" cy="40" r="11" fill="#F59E0B"/>
+    <path d="M150 24 v-4 M150 56 v4 M134 40 h-4 M166 40 h4 M139 29 l-3 -3 M161 51 l3 3 M161 29 l3 -3 M139 51 l-3 3" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Typographic Elements -->
+  <text x="600" y="470" font-family="'Outfit', system-ui, -apple-system, sans-serif" font-weight="800" font-size="84" fill="#0f172a" text-anchor="middle" letter-spacing="-2">PaperLight</text>
+  
+  <!-- Subtitle with a nice pill background -->
+  <rect x="250" y="510" width="700" height="60" rx="30" fill="#ffffff" filter="url(#shadow)" opacity="0.9"/>
+  <text x="600" y="548" font-family="'Outfit', system-ui, -apple-system, sans-serif" font-weight="600" font-size="28" fill="#d97706" text-anchor="middle" letter-spacing="1">A distraction-free, browser-based reader.</text>
+</svg>
