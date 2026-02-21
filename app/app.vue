@@ -66,7 +66,10 @@ useSeoMeta({
 
       <template #right>
         <p class="text-sm text-muted flex items-center gap-1">
-          Made with <UIcon name="i-lucide-heart" class="w-4 h-4 text-red-500 dark:text-red-400" /> by adawatia and AI
+          Made with <UIcon
+            name="i-lucide-heart"
+            class="w-4 h-4 text-red-500 dark:text-red-400"
+          /> by adawatia and AI
         </p>
       </template>
     </UFooter>
