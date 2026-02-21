@@ -32,5 +32,15 @@
   "overrides": {
     "minimatch": "^10.2.1",
     "glob": "^13.0.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "eslint": "^9.0.0"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "eslint": "^9.0.0"
+      }
+    }
   }
 }
