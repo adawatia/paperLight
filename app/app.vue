@@ -16,6 +16,8 @@ useHead({
 
 const title = 'PaperLight'
 const description = 'Paperlight is a distraction-free, browser-based reader designed for those who value speed and simplicity. Built to handle EPUBs and PDFs with zero overhead.'
+import pkg from '../package.json'
+const version = pkg.version
 
 useSeoMeta({
   title,
@@ -60,7 +62,7 @@ useSeoMeta({
     <UFooter>
       <template #left>
         <p class="text-sm text-muted">
-          PaperLight • © {{ new Date().getFullYear() }}
+          PaperLight v{{ version }} • © {{ new Date().getFullYear() }}
         </p>
       </template>
 

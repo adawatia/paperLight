@@ -27,5 +27,63 @@
         </div>
       </template>
     </UPageHero>
+
+    <!-- Upcoming Features Section -->
+    <div class="w-full max-w-5xl mx-auto px-4 mt-24 mb-16">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">Upcoming Features</h2>
+        <p class="text-lg text-muted max-w-2xl mx-auto">We are constantly working to improve PaperLight. Here's what is coming next.</p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <UCard class="hover:border-(--ui-primary)/50 transition-colors duration-300">
+          <div class="flex items-start gap-4">
+            <div class="p-3 bg-(--ui-primary)/10 rounded-xl text-primary">
+              <UIcon name="i-lucide-book-open" class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold mb-2">EPUB & PDF Support</h3>
+              <p class="text-muted">Seamlessly read your favorite EPUBs and PDFs with a custom optimized rendering engine.</p>
+            </div>
+          </div>
+        </UCard>
+        
+        <UCard class="hover:border-(--ui-primary)/50 transition-colors duration-300">
+          <div class="flex items-start gap-4">
+            <div class="p-3 bg-(--ui-primary)/10 rounded-xl text-primary">
+              <UIcon name="i-lucide-panel-left" class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold mb-2">Book Tree Sidebar</h3>
+              <p class="text-muted">Upload a book to instantly view its structure in a sidebar, complete with navigable chapters, headings, and subheadings.</p>
+            </div>
+          </div>
+        </UCard>
+        
+        <UCard class="hover:border-(--ui-primary)/50 transition-colors duration-300">
+          <div class="flex items-start gap-4">
+            <div class="p-3 bg-(--ui-primary)/10 rounded-xl text-primary">
+              <UIcon name="i-lucide-download" class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold mb-2">Local Install</h3>
+              <p class="text-muted">Install the app fully locally using PWA technologies for offline-first capabilities.</p>
+            </div>
+          </div>
+        </UCard>
+        
+        <UCard class="hover:border-(--ui-primary)/50 transition-colors duration-300">
+          <div class="flex items-start gap-4">
+            <div class="p-3 bg-(--ui-primary)/10 rounded-xl text-primary">
+              <UIcon name="i-lucide-monitor-smartphone" class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold mb-2">Mobile & Desktop Ready</h3>
+              <p class="text-muted">A truly responsive design that provides a native-feel experience on any device or screen size.</p>
+            </div>
+          </div>
+        </UCard>
+      </div>
+    </div>
   </div>
 </template>
