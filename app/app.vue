@@ -58,6 +58,7 @@ useSeoMeta({
 </script>
 
 <template>
+  <VitePwaManifest />
   <UApp>
     <UHeader :toggle="false">
       <template #left>
