@@ -35,10 +35,25 @@ const pdfCurrentPage = ref(1)
 let wakeLock: any = null
 
 // --- Chrome Auto-Hide Timer ---
+// --- Chrome Auto-Hide Timer ---
 let chromeHideTimer: ReturnType<typeof setTimeout> | null = null
 
-watch([showChrome, isSettingsOpen, isSidebarOpen], ([chromeOpen, settingsOpen, sidebarOpen]) => {
+const showHint = ref(false)
+let hintTimer: ReturnType<typeof setTimeout> | null = null
+
+watch([showChrome, isSettingsOpen, isSidebarOpen], ([chromeOpen, settingsOpen, sidebarOpen], [oldChromeOpen]) => {
   if (chromeHideTimer) clearTimeout(chromeHideTimer)
+  
+  // Show the tutorial hint when the chrome hides for the first time
+  if (!chromeOpen && oldChromeOpen && !isLoading.value && !savedProgressGet('hint_seen')) {
+    showHint.value = true
+    savedProgressSet('hint_seen', '1')
+    if (hintTimer) clearTimeout(hintTimer)
+    hintTimer = setTimeout(() => {
+      showHint.value = false
+    }, 5000)
+  }
+
   if (chromeOpen && !settingsOpen && !sidebarOpen) {
     chromeHideTimer = setTimeout(() => {
       showChrome.value = false
@@ -533,8 +548,8 @@ const goTo = async (href: string) => {
 }
 
 // Stable key generator for TOC items (avoids Math.random() churn)
-const tocItemKey = (item: any, index: number) => item.id || item.href || `toc-${index}`
-const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${index}`
+const tocItemKey = (item: any, index: number | string) => item.id || item.href || `toc-${index}`
+const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `sub-${index}`
 </script>
 
 <template>
@@ -680,6 +695,30 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
         </div>
       </Transition>
 
+      <!-- Onboarding Hint Toast -->
+      <Transition name="fade-up-hint">
+        <div
+          v-if="showHint"
+          class="absolute z-50 bottom-12 mb-2 left-1/2 -translate-x-1/2 px-4 py-2 bg-neutral-900/90 dark:bg-white/95 text-white dark:text-neutral-900 text-xs sm:text-sm font-medium rounded-xl shadow-2xl backdrop-blur-md pointer-events-none flex items-center gap-2 max-w-sm text-center"
+        >
+          <UIcon name="i-lucide-info" class="w-4 h-4 shrink-0" />
+          Tap screen or use the handle to reveal menu
+        </div>
+      </Transition>
+
+      <!-- Gentle Reveal Handle (visible when chrome is hidden) -->
+      <Transition name="slide-responsive">
+        <button
+          v-if="!showChrome && !isLoading"
+          class="absolute z-50 bottom-4 left-1/2 -translate-x-1/2 w-16 h-2 bg-neutral-400/40 dark:bg-neutral-500/40 hover:bg-neutral-500/60 dark:hover:bg-neutral-400/60 hover:scale-y-150 rounded-full backdrop-blur-md shadow-sm transition-all duration-300 cursor-pointer group ring-1 ring-white/10 dark:ring-black/10"
+          @click="showChrome = true"
+          aria-label="Show Menu"
+        >
+          <!-- Invisible increased tap target area for mobile -->
+          <span class="absolute -inset-6"></span>
+        </button>
+      </Transition>
+
       <!-- Book Container -->
       <div
         class="flex-1 w-full flex justify-center overflow-hidden transition-opacity duration-1000 ease-in-out"
@@ -722,6 +761,16 @@ html.dark .pdf-canvas {
 }
 
 /* Transitions */
+.fade-up-hint-enter-active,
+.fade-up-hint-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fade-up-hint-enter-from,
+.fade-up-hint-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 12px);
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.5s ease;
