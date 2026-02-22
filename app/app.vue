@@ -98,7 +98,7 @@ useSeoMeta({
           Made with <UIcon
             name="i-lucide-heart"
             class="w-4 h-4 text-red-500 dark:text-red-400"
-          /> by adawatia and AI
+          /> by adawatia
         </p>
       </template>
     </UFooter>

@@ -34,6 +34,37 @@ const pdfDoc = shallowRef<any>(null)
 const pdfCurrentPage = ref(1)
 let wakeLock: any = null
 
+// --- Chrome Auto-Hide Timer ---
+let chromeHideTimer: ReturnType<typeof setTimeout> | null = null
+
+watch([showChrome, isSettingsOpen, isSidebarOpen], ([chromeOpen, settingsOpen, sidebarOpen]) => {
+  if (chromeHideTimer) clearTimeout(chromeHideTimer)
+  if (chromeOpen && !settingsOpen && !sidebarOpen) {
+    chromeHideTimer = setTimeout(() => {
+      showChrome.value = false
+    }, 4000)
+  }
+}, { immediate: true })
+
+const hideChromePreventing = () => {
+  if (showChrome.value && !isSettingsOpen.value && !isSidebarOpen.value) {
+    showChrome.value = false
+  }
+}
+
+const clearChromeTimer = () => {
+  if (chromeHideTimer) clearTimeout(chromeHideTimer)
+}
+
+const startChromeTimer = () => {
+  if (showChrome.value && !isSettingsOpen.value && !isSidebarOpen.value) {
+    if (chromeHideTimer) clearTimeout(chromeHideTimer)
+    chromeHideTimer = setTimeout(() => {
+      showChrome.value = false
+    }, 4000)
+  }
+}
+
 // --- Wake Lock ---
 
 const requestWakeLock = async () => {
@@ -94,6 +125,14 @@ const handleFullscreenChange = () => {
 
 // Debounce PDF re-render on font size change to avoid rapid redundant renders
 let fontSizeDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const increaseFontSize = () => {
+  fontSize.value = Math.min(250, Number(fontSize.value) + 10)
+}
+
+const decreaseFontSize = () => {
+  fontSize.value = Math.max(50, Number(fontSize.value) - 10)
+}
 
 watch(fontSize, (newVal) => {
   if (isLoading.value) return // Don't re-render while loading
@@ -238,6 +277,10 @@ const loadFile = async () => {
 
       // Register touch/click hook on internal iframe to toggle chrome
       rendition.value.hooks.content.register((contents: any) => {
+        contents.document.addEventListener('scroll', () => {
+          hideChromePreventing()
+        }, { passive: true })
+
         contents.document.onclick = (e: MouseEvent) => {
           const rect = contents.document.body.getBoundingClientRect()
           const x = e.clientX - rect.left
@@ -299,6 +342,7 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 
   if (fontSizeDebounceTimer) clearTimeout(fontSizeDebounceTimer)
+  if (chromeHideTimer) clearTimeout(chromeHideTimer)
 
   releaseWakeLock()
 
@@ -339,14 +383,18 @@ const touchEndX = ref(0)
 const touchEndY = ref(0)
 
 const handleTouchStart = (e: TouchEvent) => {
-  touchStartX.value = e.changedTouches[0].screenX
-  touchStartY.value = e.changedTouches[0].screenY
+  if (e.changedTouches && e.changedTouches[0]) {
+    touchStartX.value = e.changedTouches[0].screenX
+    touchStartY.value = e.changedTouches[0].screenY
+  }
 }
 
 const handleTouchEnd = (e: TouchEvent) => {
-  touchEndX.value = e.changedTouches[0].screenX
-  touchEndY.value = e.changedTouches[0].screenY
-  handleSwipe()
+  if (e.changedTouches && e.changedTouches[0]) {
+    touchEndX.value = e.changedTouches[0].screenX
+    touchEndY.value = e.changedTouches[0].screenY
+    handleSwipe()
+  }
 }
 
 const handleSwipe = () => {
@@ -549,13 +597,15 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
 
     <!-- Main Reader Area -->
     <main class="flex-1 flex flex-col min-w-0 relative">
-      <!-- Hidden Chrome Top Bar -->
-      <Transition name="slide-down">
+      <!-- Responsive Chrome Bar -->
+      <Transition name="slide-responsive">
         <div
           v-if="showChrome"
-          class="absolute top-0 left-0 right-0 h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md z-30 shadow-sm transition-all duration-300"
+          class="absolute z-40 sm:top-0 bottom-6 sm:bottom-auto left-4 right-4 sm:left-0 sm:right-0 h-14 sm:h-16 border sm:border-0 sm:border-b border-border rounded-2xl sm:rounded-none flex items-center justify-between px-3 sm:px-6 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md shadow-2xl sm:shadow-sm transition-all duration-300 ring-1 ring-black/5 sm:ring-0 dark:ring-white/10"
+          @mouseenter="clearChromeTimer"
+          @mouseleave="startChromeTimer"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1 sm:gap-3">
             <UButton
               icon="i-lucide-panel-left"
               color="neutral"
@@ -563,12 +613,12 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
               aria-label="Toggle Table of Contents"
               @click="isSidebarOpen = !isSidebarOpen"
             />
-            <h1 class="text-sm font-medium truncate max-w-[150px] sm:max-w-xs opacity-70 hidden sm:block">
+            <h1 class="text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-xs opacity-70 hidden sm:block">
               {{ props.file.name }}
             </h1>
           </div>
 
-          <div class="flex items-center gap-1 sm:gap-2">
+          <div class="flex items-center gap-0.5 sm:gap-2">
             <!-- Fullscreen Toggle -->
             <UButton
               :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
@@ -591,11 +641,11 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
                       <span class="text-primary">{{ fontSize }}%</span>
                     </div>
                     <div class="flex items-center gap-3">
-                      <UButton icon="i-lucide-minus" size="sm" color="neutral" variant="soft" :disabled="fontSize <= 50" class="rounded-full" @click="fontSize = Math.max(50, fontSize - 10)" />
+                      <UButton icon="i-lucide-minus" size="sm" color="neutral" variant="soft" :disabled="fontSize <= 50" class="rounded-full" @click="decreaseFontSize" />
                       <div class="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden relative">
-                        <div class="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-300" :style="`width: ${(fontSize - 50) / 2}%`"></div>
+                        <div class="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-300" :style="`width: ${(Number(fontSize) - 50) / 2}%`"></div>
                       </div>
-                      <UButton icon="i-lucide-plus" size="sm" color="neutral" variant="soft" :disabled="fontSize >= 250" class="rounded-full" @click="fontSize = Math.min(250, fontSize + 10)" />
+                      <UButton icon="i-lucide-plus" size="sm" color="neutral" variant="soft" :disabled="fontSize >= 250" class="rounded-full" @click="increaseFontSize" />
                     </div>
                   </div>
 
@@ -633,8 +683,9 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
       >
         <div
           ref="readerContainer"
-          class="w-full max-w-[800px] h-full overflow-y-auto relative reader-view"
+          class="w-full max-w-[800px] h-full overflow-y-auto relative reader-view pb-24 sm:pb-0"
           @click="isPdf ? (showChrome = !showChrome) : undefined"
+          @scroll="hideChromePreventing"
         >
           <!-- For PDFs, clicking the canvas toggles chrome. EPUBs use the iframe click hook. -->
         </div>
@@ -676,14 +727,24 @@ html.dark .pdf-canvas {
   opacity: 0;
 }
 
-.slide-down-enter-active,
-.slide-down-leave-active {
+/* Responsive Slide Transition for Chrome Navigation */
+.slide-responsive-enter-active,
+.slide-responsive-leave-active {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.slide-down-enter-from,
-.slide-down-leave-to {
-  transform: translateY(-100%);
-  opacity: 0;
+@media (max-width: 639px) { /* Mobile: slides up from bottom */
+  .slide-responsive-enter-from,
+  .slide-responsive-leave-to {
+    transform: translateY(150%);
+    opacity: 0;
+  }
+}
+@media (min-width: 640px) { /* Desktop: slides down from top */
+  .slide-responsive-enter-from,
+  .slide-responsive-leave-to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
 }
 
 .slide-right-enter-active,
