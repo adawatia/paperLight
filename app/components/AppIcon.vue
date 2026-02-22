@@ -60,7 +60,7 @@ const colorMode = useColorMode()
     />
 
     <!-- ClientOnly prevents SSR hydration edge cases with useColorMode -->
-    <ClientOnly>
+    <ClientOnly fallback-tag="g">
       <!-- Dark Mode: Moon -->
       <g
         v-if="colorMode.value === 'dark'"

@@ -26,6 +26,9 @@ importers:
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
+      vue:
+        specifier: ^3.5.28
+        version: 3.5.28(typescript@5.9.3)
     devDependencies:
       '@nuxt/eslint':
         specifier: ^1.15.1

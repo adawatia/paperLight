@@ -14,9 +14,10 @@ useHead({
   }
 })
 
+import pkg from '../package.json'
+
 const title = 'PaperLight'
 const description = 'Paperlight is a distraction-free, browser-based reader designed for those who value speed and simplicity. Built to handle EPUBs and PDFs with zero overhead.'
-import pkg from '../package.json'
 const version = pkg.version
 
 useSeoMeta({

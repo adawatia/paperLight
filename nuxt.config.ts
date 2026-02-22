@@ -5,6 +5,10 @@ export default defineNuxtConfig({
     '@nuxt/ui'
   ],
 
+  build: {
+    transpile: ['reka-ui']
+  },
+
   devtools: {
     enabled: true
   },
