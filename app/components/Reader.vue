@@ -556,8 +556,8 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
     <!-- Sidebar for Book Tree (Off-canvas) -->
     <Transition name="slide-right">
       <aside
-        v-if="isSidebarOpen && showChrome"
-        class="absolute left-0 top-0 bottom-0 w-72 border-r border-border bg-background/95 backdrop-blur-xl shrink-0 flex flex-col z-40 shadow-2xl"
+        v-if="isSidebarOpen"
+        class="fixed left-0 top-0 bottom-0 w-72 border-r border-border bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl shrink-0 flex flex-col z-[100] shadow-2xl"
       >
         <div class="h-16 border-b border-border flex items-center justify-between px-4 shrink-0">
           <h3 class="font-semibold truncate pr-2 text-sm">{{ props.file.name }}</h3>
@@ -597,82 +597,86 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
 
     <!-- Main Reader Area -->
     <main class="flex-1 flex flex-col min-w-0 relative">
-      <!-- Responsive Chrome Bar -->
+      <!-- Unified Bottom Floating Nav -->
       <Transition name="slide-responsive">
         <div
           v-if="showChrome"
-          class="absolute z-40 sm:top-0 bottom-6 sm:bottom-auto left-4 right-4 sm:left-0 sm:right-0 h-14 sm:h-16 border sm:border-0 sm:border-b border-border rounded-2xl sm:rounded-none flex items-center justify-between px-3 sm:px-6 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md shadow-2xl sm:shadow-sm transition-all duration-300 ring-1 ring-black/5 sm:ring-0 dark:ring-white/10"
+          class="absolute z-50 bottom-6 left-1/2 -translate-x-1/2 w-max max-w-[calc(100%-2rem)] h-14 border border-border rounded-full flex items-center justify-center px-3 sm:px-6 gap-1 sm:gap-2 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md shadow-2xl transition-all duration-300 ring-1 ring-black/5 dark:ring-white/10"
           @mouseenter="clearChromeTimer"
           @mouseleave="startChromeTimer"
         >
-          <div class="flex items-center gap-1 sm:gap-3">
-            <UButton
-              icon="i-lucide-panel-left"
-              color="neutral"
-              variant="ghost"
-              aria-label="Toggle Table of Contents"
-              @click="isSidebarOpen = !isSidebarOpen"
-            />
-            <h1 class="text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-xs opacity-70 hidden sm:block">
-              {{ props.file.name }}
-            </h1>
-          </div>
+          <UButton
+            icon="i-lucide-panel-left"
+            color="neutral"
+            variant="ghost"
+            aria-label="Table of Contents"
+            @click="isSidebarOpen = !isSidebarOpen"
+          />
 
-          <div class="flex items-center gap-0.5 sm:gap-2">
-            <!-- Fullscreen Toggle -->
-            <UButton
-              :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
-              color="neutral"
-              variant="ghost"
-              aria-label="Toggle Fullscreen"
-              class="hidden sm:flex"
-              @click="toggleFullscreen"
-            />
+          <div class="h-6 w-px bg-border mx-1"></div>
 
-            <!-- Settings Popover -->
-            <UPopover v-model:open="isSettingsOpen">
-              <UButton icon="i-lucide-settings-2" color="neutral" variant="ghost" aria-label="Reading Settings" />
-              <template #content>
-                <div class="p-5 w-72 space-y-6">
-                  <!-- Font Size -->
-                  <div>
-                    <div class="text-xs font-semibold text-muted mb-3 uppercase tracking-wider flex justify-between">
-                      <span>Font Size</span>
-                      <span class="text-primary">{{ fontSize }}%</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <UButton icon="i-lucide-minus" size="sm" color="neutral" variant="soft" :disabled="fontSize <= 50" class="rounded-full" @click="decreaseFontSize" />
-                      <div class="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden relative">
-                        <div class="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-300" :style="`width: ${(Number(fontSize) - 50) / 2}%`"></div>
-                      </div>
-                      <UButton icon="i-lucide-plus" size="sm" color="neutral" variant="soft" :disabled="fontSize >= 250" class="rounded-full" @click="increaseFontSize" />
-                    </div>
+          <!-- Prev/Next Navigation -->
+          <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" aria-label="Previous Page" @click="prevPage" />
+          <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" aria-label="Next Page" @click="nextPage" />
+
+          <div class="h-6 w-px bg-border mx-1 hidden sm:block"></div>
+
+          <!-- Desktop Title (Hidden on mobile to save space) -->
+          <h1 class="text-sm font-medium truncate max-w-[150px] opacity-70 hidden sm:block mx-2">
+            {{ props.file.name }}
+          </h1>
+
+          <div class="h-6 w-px bg-border mx-1"></div>
+
+          <!-- Settings Popover -->
+          <UPopover v-model:open="isSettingsOpen">
+            <UButton icon="i-lucide-settings" color="neutral" variant="ghost" aria-label="Reading Settings" />
+            <template #content>
+              <div class="p-5 w-72 space-y-6">
+                <!-- Font Size -->
+                <div>
+                  <div class="text-xs font-semibold text-muted mb-3 uppercase tracking-wider flex justify-between">
+                    <span>Font Size</span>
+                    <span class="text-primary">{{ fontSize }}%</span>
                   </div>
-
-                  <!-- Theme Toggle (Uses Nuxt UI's built-in ColorMode) -->
-                  <div>
-                    <div class="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Theme</div>
-                    <div class="flex justify-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
-                      <UColorModeButton class="w-full flex justify-center" />
+                  <div class="flex items-center gap-3">
+                    <UButton icon="i-lucide-minus" size="sm" color="neutral" variant="soft" :disabled="fontSize <= 50" class="rounded-full" @click="decreaseFontSize" />
+                    <div class="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden relative">
+                      <div class="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-300" :style="`width: ${(Number(fontSize) - 50) / 2}%`"></div>
                     </div>
+                    <UButton icon="i-lucide-plus" size="sm" color="neutral" variant="soft" :disabled="fontSize >= 250" class="rounded-full" @click="increaseFontSize" />
                   </div>
                 </div>
-              </template>
-            </UPopover>
 
-            <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" aria-label="Previous Page" @click="prevPage" />
-            <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" aria-label="Next Page" @click="nextPage" />
+                <!-- Theme Toggle -->
+                <div>
+                  <div class="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Theme</div>
+                  <div class="flex justify-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
+                    <UColorModeButton class="w-full flex justify-center" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </UPopover>
 
-            <div class="w-px h-6 bg-border mx-2"></div>
+          <UButton
+            :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
+            color="neutral"
+            variant="ghost"
+            aria-label="Toggle Fullscreen"
+            class="hidden sm:flex"
+            @click="toggleFullscreen"
+          />
 
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              aria-label="Close Book"
-              @click="emit('close')"
-            />
-          </div>
+          <div class="h-6 w-px bg-border mx-1"></div>
+
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            aria-label="Close Book"
+            @click="emit('close')"
+          />
         </div>
       </Transition>
 
@@ -683,7 +687,7 @@ const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${ind
       >
         <div
           ref="readerContainer"
-          class="w-full max-w-[800px] h-full overflow-y-auto relative reader-view pb-24 sm:pb-0"
+          class="w-full max-w-[800px] h-full overflow-y-auto relative reader-view pb-24"
           @click="isPdf ? (showChrome = !showChrome) : undefined"
           @scroll="hideChromePreventing"
         >
@@ -732,19 +736,10 @@ html.dark .pdf-canvas {
 .slide-responsive-leave-active {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-@media (max-width: 639px) { /* Mobile: slides up from bottom */
-  .slide-responsive-enter-from,
-  .slide-responsive-leave-to {
-    transform: translateY(150%);
-    opacity: 0;
-  }
-}
-@media (min-width: 640px) { /* Desktop: slides down from top */
-  .slide-responsive-enter-from,
-  .slide-responsive-leave-to {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
+.slide-responsive-enter-from,
+.slide-responsive-leave-to {
+  transform: translateY(150%);
+  opacity: 0;
 }
 
 .slide-right-enter-active,
