@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import ePub from 'epubjs'
+import * as pdfjsLib from 'pdfjs-dist'
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?worker'
+
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker()
+}
 
 const props = defineProps<{
   file: File
@@ -23,61 +29,182 @@ const fontSize = ref(100)
 const toc = ref<any[]>([])
 const currentUrl = ref<string>('')
 const isFullscreen = ref(false)
+const isPdf = ref(false)
+const pdfDoc = shallowRef<any>(null)
+const pdfCurrentPage = ref(1)
 let wakeLock: any = null
+
+// --- Wake Lock ---
 
 const requestWakeLock = async () => {
   try {
     if ('wakeLock' in navigator) {
       wakeLock = await (navigator as any).wakeLock.request('screen')
+      // Re-acquire the wake lock if the browser releases it on visibility change
+      wakeLock.addEventListener('release', () => {
+        wakeLock = null
+      })
     }
   } catch (err) {
-    console.error('WakeLock API not supported/failed', err)
+    // Wake Lock may be denied in some situations (battery saver etc.) — not critical
+    console.warn('WakeLock request failed:', err)
   }
 }
 
 const releaseWakeLock = () => {
   if (wakeLock !== null) {
-    wakeLock.release()
+    try {
+      wakeLock.release()
+    } catch (_) {
+      // Already released by browser
+    }
     wakeLock = null
   }
 }
 
-const toggleFullscreen = async () => {
-  if (!document.fullscreenElement) {
-    await document.documentElement.requestFullscreen()
-    isFullscreen.value = true
-  } else {
-    if (document.exitFullscreen) {
-      await document.exitFullscreen()
-      isFullscreen.value = false
-    }
+// Re-request wake lock when the tab becomes visible again
+const handleVisibilityChange = async () => {
+  if (document.visibilityState === 'visible' && wakeLock === null && !isLoading.value) {
+    await requestWakeLock()
   }
 }
 
+// --- Fullscreen ---
+
+const toggleFullscreen = async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen()
+      isFullscreen.value = true
+    } else {
+      await document.exitFullscreen()
+      isFullscreen.value = false
+    }
+  } catch (err) {
+    console.warn('Fullscreen toggle failed:', err)
+  }
+}
+
+// Sync isFullscreen if user exits via Escape key or browser control
+const handleFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
+
+// --- Font Size ---
+
+// Debounce PDF re-render on font size change to avoid rapid redundant renders
+let fontSizeDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
 watch(fontSize, (newVal) => {
-  if (rendition.value) {
+  if (isLoading.value) return // Don't re-render while loading
+
+  if (isPdf.value) {
+    if (fontSizeDebounceTimer) clearTimeout(fontSizeDebounceTimer)
+    fontSizeDebounceTimer = setTimeout(() => {
+      renderPdfPage(pdfCurrentPage.value)
+    }, 200)
+  } else if (rendition.value) {
     rendition.value.themes.fontSize(`${newVal}%`)
   }
 })
 
-// Load Book
+// --- Storage helpers (SSR-safe) ---
+
+const getStorageKey = (fileName: string) => `paperlight-${fileName}-progress`
+
+const savedProgressGet = (fileName: string): string | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage.getItem(getStorageKey(fileName))
+  } catch {
+    return null
+  }
+}
+
+const savedProgressSet = (fileName: string, value: string) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(getStorageKey(fileName), value)
+  } catch {
+    // localStorage may be unavailable (private browsing, quota exceeded, etc.)
+    console.warn('Could not save reading progress to localStorage.')
+  }
+}
+
+// --- Load Book ---
+
+let relocatedListener: ((location: any) => void) | null = null
+
 const loadFile = async () => {
   try {
     isLoading.value = true
     showChrome.value = true
-    
-    const arrayBuffer = await props.file.arrayBuffer()
-    
-    // Cleanup previous completely if any
-    if (book.value) {
-      book.value.destroy()
+
+    // --- Cleanup previous state ---
+    if (rendition.value) {
+      // Remove the previously attached relocated listener to avoid leaks
+      if (relocatedListener) {
+        try { rendition.value.off('relocated', relocatedListener) } catch (_) {}
+        relocatedListener = null
+      }
     }
-    
+    if (book.value) {
+      try { book.value.destroy() } catch (_) {}
+      book.value = null
+      rendition.value = null
+    }
+    if (pdfDoc.value) {
+      try { pdfDoc.value.destroy() } catch (_) {}
+      pdfDoc.value = null
+    }
+    // Clear the reader container DOM (e.g. old PDF canvas or epub iframe)
+    if (readerContainer.value) {
+      readerContainer.value.innerHTML = ''
+    }
+    toc.value = []
+    currentUrl.value = ''
+    isPdf.value = false
+
+    const arrayBuffer = await props.file.arrayBuffer()
+
     await requestWakeLock()
-    
-    if (props.file.type === 'application/epub+zip' || props.file.name.endsWith('.epub')) {
+
+    if (props.file.type === 'application/pdf' || props.file.name.endsWith('.pdf')) {
+      isPdf.value = true
+
+      const typedArray = new Uint8Array(arrayBuffer)
+
+      const cMapUrl = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`
+      const standardFontDataUrl = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/standard_fonts/`
+
+      const loadingTask = pdfjsLib.getDocument({
+        data: typedArray,
+        cMapUrl,
+        cMapPacked: true,
+        standardFontDataUrl
+      })
+
+      try {
+        pdfDoc.value = await loadingTask.promise
+      } catch (err) {
+        console.error('Failed to parse PDF document.', err)
+        isLoading.value = false
+        return
+      }
+
+      const savedPage = savedProgressGet(props.file.name)
+      const parsedPage = savedPage ? parseInt(savedPage, 10) : NaN
+      // Clamp to valid page range
+      pdfCurrentPage.value = (!isNaN(parsedPage) && parsedPage >= 1 && parsedPage <= pdfDoc.value.numPages)
+        ? parsedPage
+        : 1
+
+      await renderPdfPage(pdfCurrentPage.value)
+      isLoading.value = false
+    } else if (props.file.type === 'application/epub+zip' || props.file.name.endsWith('.epub')) {
+      isPdf.value = false
       book.value = ePub(arrayBuffer)
-      
+
       rendition.value = book.value.renderTo(readerContainer.value, {
         width: '100%',
         height: '100%',
@@ -85,13 +212,11 @@ const loadFile = async () => {
         manager: 'continuous',
         flow: 'scrolled'
       })
-      
+
       // Inject paper-like typography and constraints
       rendition.value.themes.default({
         'body': {
-          'max-width': '75ch', // Optimal reading width
-          'margin': '0 auto !important',
-          'padding': '3rem 1.5rem !important', // Give breathing room
+          'padding': '0 2rem !important',
           'font-family': 'Georgia, "Times New Roman", serif !important',
           'line-height': '1.6 !important',
           'color': 'currentColor'
@@ -107,17 +232,17 @@ const loadFile = async () => {
           'line-height': '1.3 !important'
         }
       })
-      
-      const savedProgress = window.localStorage.getItem(`paperlight-${props.file.name}-progress`)
+
+      const savedProgress = savedProgressGet(props.file.name)
       await rendition.value.display(savedProgress || undefined)
-      
+
       // Register touch/click hook on internal iframe to toggle chrome
       rendition.value.hooks.content.register((contents: any) => {
         contents.document.onclick = (e: MouseEvent) => {
           const rect = contents.document.body.getBoundingClientRect()
           const x = e.clientX - rect.left
           const width = rect.width
-          
+
           // Tap in the middle 60% of screen toggles UI
           if (x > width * 0.2 && x < width * 0.8) {
             showChrome.value = !showChrome.value
@@ -128,26 +253,29 @@ const loadFile = async () => {
           }
         }
       })
-      
+
       book.value.loaded.navigation.then((nav: any) => {
-        toc.value = nav.toc
+        toc.value = nav.toc ?? []
+      }).catch((err: any) => {
+        console.warn('Could not load table of contents:', err)
+        toc.value = []
       })
-      
-      rendition.value.on('relocated', (location: any) => {
-        currentUrl.value = location.start.href
-        // Save progress using Canonical Fragment Identifier
-        window.localStorage.setItem(`paperlight-${props.file.name}-progress`, location.start.cfi)
-      })
-      
+
+      // Store listener ref so we can remove it if the file changes
+      relocatedListener = (location: any) => {
+        if (location?.start?.href) {
+          currentUrl.value = location.start.href
+        }
+        if (location?.start?.cfi) {
+          savedProgressSet(props.file.name, location.start.cfi)
+        }
+      }
+      rendition.value.on('relocated', relocatedListener)
+
       isLoading.value = false
     } else {
-      console.log('PDF loading to be implemented using pdfjs-dist / iframe')
-      // PDF fallback: Create object URL
-      if (readerContainer.value) {
-        const url = URL.createObjectURL(props.file)
-        readerContainer.value.innerHTML = `<iframe src="${url}#toolbar=0" class="w-full h-full border-none"></iframe>`
-        isLoading.value = false
-      }
+      console.warn('Unsupported file format.')
+      isLoading.value = false
     }
   } catch (error) {
     console.error('Error loading file:', error)
@@ -159,32 +287,214 @@ watch(() => props.file, loadFile, { immediate: true })
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  window.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+
+  if (fontSizeDebounceTimer) clearTimeout(fontSizeDebounceTimer)
+
   releaseWakeLock()
+
+  if (rendition.value && relocatedListener) {
+    try { rendition.value.off('relocated', relocatedListener) } catch (_) {}
+  }
   if (book.value) {
-    book.value.destroy()
+    try { book.value.destroy() } catch (_) {}
+  }
+  if (pdfDoc.value) {
+    try { pdfDoc.value.destroy() } catch (_) {}
   }
 })
+
+// --- Keyboard Navigation ---
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  // Don't hijack keyboard shortcuts if the user is typing in an input
+  const tag = (e.target as HTMLElement)?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+  // Also ignore if a contenteditable element is focused
+  if ((e.target as HTMLElement)?.isContentEditable) return
+
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    nextPage()
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    prevPage()
+  } else if (e.key === 'Escape' && isSidebarOpen.value) {
+    isSidebarOpen.value = false
+  }
+}
+
+// --- Touch / Swipe ---
+
+const touchStartX = ref(0)
+const touchStartY = ref(0)
+const touchEndX = ref(0)
+const touchEndY = ref(0)
+
+const handleTouchStart = (e: TouchEvent) => {
+  touchStartX.value = e.changedTouches[0].screenX
+  touchStartY.value = e.changedTouches[0].screenY
+}
+
+const handleTouchEnd = (e: TouchEvent) => {
+  touchEndX.value = e.changedTouches[0].screenX
+  touchEndY.value = e.changedTouches[0].screenY
+  handleSwipe()
+}
+
+const handleSwipe = () => {
+  const swipeThresholdX = 50
+  const dx = touchEndX.value - touchStartX.value
+  const dy = touchEndY.value - touchStartY.value
+
+  // Only treat gesture as horizontal swipe if it's more horizontal than vertical
+  if (Math.abs(dx) < swipeThresholdX || Math.abs(dx) < Math.abs(dy)) return
+
+  if (dx < 0) {
+    nextPage()
+  } else {
+    prevPage()
+  }
+}
+
+// --- Resize ---
 
 const handleResize = () => {
   if (rendition.value && readerContainer.value) {
     try {
       rendition.value.resize()
-    } catch (e) { }
+    } catch (_) {}
+  } else if (isPdf.value && pdfDoc.value && !isLoading.value) {
+    // Re-render current PDF page at new size
+    if (fontSizeDebounceTimer) clearTimeout(fontSizeDebounceTimer)
+    fontSizeDebounceTimer = setTimeout(() => {
+      renderPdfPage(pdfCurrentPage.value)
+    }, 150)
   }
 }
 
-const prevPage = () => rendition.value?.prev()
-const nextPage = () => rendition.value?.next()
-const goTo = (href: string) => rendition.value?.display(href)
+// --- PDF Rendering ---
 
+const renderPdfPage = async (pageNumber: number) => {
+  if (!pdfDoc.value || !readerContainer.value) return
+
+  // Clamp pageNumber to valid range
+  const clampedPage = Math.max(1, Math.min(pageNumber, pdfDoc.value.numPages))
+  if (clampedPage !== pageNumber) {
+    pdfCurrentPage.value = clampedPage
+    pageNumber = clampedPage
+  }
+
+  let page: any
+  try {
+    page = await pdfDoc.value.getPage(pageNumber)
+  } catch (err) {
+    console.error(`Failed to get PDF page ${pageNumber}:`, err)
+    return
+  }
+
+  let canvas = readerContainer.value.querySelector<HTMLCanvasElement>('canvas')
+  if (!canvas) {
+    readerContainer.value.innerHTML = ''
+    canvas = document.createElement('canvas')
+    canvas.className = 'w-full h-auto bg-white m-auto shadow-sm transition-all pdf-canvas'
+    readerContainer.value.appendChild(canvas)
+    readerContainer.value.style.overflowY = 'auto'
+  }
+
+  const containerWidth = readerContainer.value.clientWidth > 0 ? readerContainer.value.clientWidth : 800
+  const unscaledViewport = page.getViewport({ scale: 1 })
+
+  // Fix: calculate scale correctly — multiply by fontSize ratio, don't floor at 2
+  const scale = Math.max(0.5, (containerWidth / unscaledViewport.width) * (fontSize.value / 100))
+
+  const viewport = page.getViewport({ scale })
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    console.error('Failed to get 2D canvas context for PDF rendering.')
+    return
+  }
+
+  // Handle high-DPI (retina) screens for crispness
+  const dpr = window.devicePixelRatio || 1
+  canvas.width = Math.floor(viewport.width * dpr)
+  canvas.height = Math.floor(viewport.height * dpr)
+  canvas.style.width = `${Math.floor(viewport.width)}px`
+  canvas.style.height = `${Math.floor(viewport.height)}px`
+  ctx.scale(dpr, dpr)
+
+  try {
+    await page.render({ canvasContext: ctx, viewport }).promise
+  } catch (err) {
+    console.error('PDF page render failed:', err)
+    return
+  }
+
+  currentUrl.value = `Page ${pageNumber} of ${pdfDoc.value.numPages}`
+  readerContainer.value.scrollTo(0, 0)
+}
+
+// --- Navigation ---
+
+const prevPage = async () => {
+  if (isPdf.value) {
+    if (pdfCurrentPage.value > 1) {
+      pdfCurrentPage.value--
+      await renderPdfPage(pdfCurrentPage.value)
+      savedProgressSet(props.file.name, pdfCurrentPage.value.toString())
+    }
+  } else {
+    rendition.value?.prev()
+  }
+}
+
+const nextPage = async () => {
+  if (isPdf.value) {
+    if (pdfDoc.value && pdfCurrentPage.value < pdfDoc.value.numPages) {
+      pdfCurrentPage.value++
+      await renderPdfPage(pdfCurrentPage.value)
+      savedProgressSet(props.file.name, pdfCurrentPage.value.toString())
+    }
+  } else {
+    rendition.value?.next()
+  }
+}
+
+const goTo = async (href: string) => {
+  if (!href) return
+  if (!isPdf.value && rendition.value) {
+    try {
+      await rendition.value.display(href)
+      // Hide the chrome and sidebar on smaller screens after jumping to a chapter
+      if (window.innerWidth < 1024) {
+        showChrome.value = false
+        isSidebarOpen.value = false
+        isSettingsOpen.value = false
+      }
+    } catch (err) {
+      console.warn('Could not navigate to toc href:', err)
+    }
+  }
+}
+
+// Stable key generator for TOC items (avoids Math.random() churn)
+const tocItemKey = (item: any, index: number) => item.id || item.href || `toc-${index}`
+const subItemKey = (sub: any, index: number) => sub.id || sub.href || `sub-${index}`
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex bg-white dark:bg-neutral-900 text-foreground overflow-hidden">
+  <div
+    class="fixed inset-0 z-50 flex bg-white dark:bg-neutral-900 text-foreground overflow-hidden"
+    @touchstart.passive="handleTouchStart"
+    @touchend.passive="handleTouchEnd"
+  >
     <!-- Calm Loading State -->
     <Transition name="fade">
       <div v-if="isLoading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-neutral-900 pointer-events-none">
@@ -197,30 +507,31 @@ const goTo = (href: string) => rendition.value?.display(href)
 
     <!-- Sidebar for Book Tree (Off-canvas) -->
     <Transition name="slide-right">
-      <aside 
+      <aside
         v-if="isSidebarOpen && showChrome"
         class="absolute left-0 top-0 bottom-0 w-72 border-r border-border bg-background/95 backdrop-blur-xl shrink-0 flex flex-col z-40 shadow-2xl"
       >
         <div class="h-16 border-b border-border flex items-center justify-between px-4 shrink-0">
           <h3 class="font-semibold truncate pr-2 text-sm">{{ props.file.name }}</h3>
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isSidebarOpen = false" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" aria-label="Close sidebar" @click="isSidebarOpen = false" />
         </div>
         <div class="p-4 overflow-y-auto flex-1 custom-scrollbar">
           <h4 class="text-xs font-semibold text-muted mb-4 uppercase tracking-wider">Contents</h4>
-          
-          <ul class="space-y-1" v-if="toc && toc.length">
-            <li v-for="item in toc" :key="item.id">
-              <button 
+
+          <ul v-if="toc && toc.length" class="space-y-1">
+            <li v-for="(item, idx) in toc" :key="tocItemKey(item, idx)">
+              <button
                 class="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-primary/10 transition-colors truncate"
-                :class="{ 'bg-primary/15 text-primary font-medium': currentUrl.includes(item.href) }"
+                :class="{ 'bg-primary/15 text-primary font-medium': currentUrl && item.href && currentUrl.includes(item.href) }"
                 @click="goTo(item.href)"
               >
                 {{ item.label }}
               </button>
               <ul v-if="item.subitems && item.subitems.length" class="pl-4 mt-1 space-y-1">
-                <li v-for="sub in item.subitems" :key="sub.id">
-                  <button 
+                <li v-for="(sub, subIdx) in item.subitems" :key="subItemKey(sub, subIdx)">
+                  <button
                     class="w-full text-left px-2 py-1 rounded-md text-xs hover:bg-primary/10 text-muted transition-colors truncate"
+                    :class="{ 'bg-primary/15 text-primary font-medium': currentUrl && sub.href && currentUrl.includes(sub.href) }"
                     @click="goTo(sub.href)"
                   >
                     {{ sub.label }}
@@ -240,17 +551,17 @@ const goTo = (href: string) => rendition.value?.display(href)
     <main class="flex-1 flex flex-col min-w-0 relative">
       <!-- Hidden Chrome Top Bar -->
       <Transition name="slide-down">
-        <div 
+        <div
           v-if="showChrome"
           class="absolute top-0 left-0 right-0 h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md z-30 shadow-sm transition-all duration-300"
         >
           <div class="flex items-center gap-3">
-            <UButton 
-              icon="i-lucide-panel-left" 
-              color="neutral" 
-              variant="ghost" 
-              @click="isSidebarOpen = !isSidebarOpen" 
+            <UButton
+              icon="i-lucide-panel-left"
+              color="neutral"
+              variant="ghost"
               aria-label="Toggle Table of Contents"
+              @click="isSidebarOpen = !isSidebarOpen"
             />
             <h1 class="text-sm font-medium truncate max-w-[150px] sm:max-w-xs opacity-70 hidden sm:block">
               {{ props.file.name }}
@@ -259,15 +570,15 @@ const goTo = (href: string) => rendition.value?.display(href)
 
           <div class="flex items-center gap-1 sm:gap-2">
             <!-- Fullscreen Toggle -->
-            <UButton 
-              :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'" 
-              color="neutral" 
-              variant="ghost" 
-              @click="toggleFullscreen" 
+            <UButton
+              :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
+              color="neutral"
+              variant="ghost"
               aria-label="Toggle Fullscreen"
               class="hidden sm:flex"
+              @click="toggleFullscreen"
             />
-            
+
             <!-- Settings Popover -->
             <UPopover v-model:open="isSettingsOpen">
               <UButton icon="i-lucide-settings-2" color="neutral" variant="ghost" aria-label="Reading Settings" />
@@ -280,14 +591,14 @@ const goTo = (href: string) => rendition.value?.display(href)
                       <span class="text-primary">{{ fontSize }}%</span>
                     </div>
                     <div class="flex items-center gap-3">
-                      <UButton icon="i-lucide-minus" size="sm" color="neutral" variant="soft" :disabled="fontSize <= 50" @click="fontSize -= 10" class="rounded-full" />
+                      <UButton icon="i-lucide-minus" size="sm" color="neutral" variant="soft" :disabled="fontSize <= 50" class="rounded-full" @click="fontSize = Math.max(50, fontSize - 10)" />
                       <div class="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden relative">
                         <div class="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-300" :style="`width: ${(fontSize - 50) / 2}%`"></div>
                       </div>
-                      <UButton icon="i-lucide-plus" size="sm" color="neutral" variant="soft" :disabled="fontSize >= 250" @click="fontSize += 10" class="rounded-full" />
+                      <UButton icon="i-lucide-plus" size="sm" color="neutral" variant="soft" :disabled="fontSize >= 250" class="rounded-full" @click="fontSize = Math.min(250, fontSize + 10)" />
                     </div>
                   </div>
-                  
+
                   <!-- Theme Toggle (Uses Nuxt UI's built-in ColorMode) -->
                   <div>
                     <div class="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Theme</div>
@@ -299,30 +610,34 @@ const goTo = (href: string) => rendition.value?.display(href)
               </template>
             </UPopover>
 
-            <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" @click="prevPage" aria-label="Previous Page" />
-            <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" @click="nextPage" aria-label="Next Page" />
-            
+            <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" aria-label="Previous Page" @click="prevPage" />
+            <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" aria-label="Next Page" @click="nextPage" />
+
             <div class="w-px h-6 bg-border mx-2"></div>
-            
-            <UButton 
-              icon="i-lucide-x" 
-              color="neutral" 
-              variant="ghost" 
-              @click="emit('close')" 
+
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
               aria-label="Close Book"
+              @click="emit('close')"
             />
           </div>
         </div>
       </Transition>
 
       <!-- Book Container -->
-      <div 
-        ref="readerContainer" 
-        class="flex-1 w-full overflow-hidden relative reader-view transition-opacity duration-1000 ease-in-out"
+      <div
+        class="flex-1 w-full flex justify-center overflow-hidden transition-opacity duration-1000 ease-in-out"
         :class="{ 'opacity-0': isLoading, 'opacity-100': !isLoading }"
-        @click="showChrome = !showChrome" 
       >
-        <!-- Clicking the outer canvas also toggles chrome for safety (PDFs etc) -->
+        <div
+          ref="readerContainer"
+          class="w-full max-w-[800px] h-full overflow-y-auto relative reader-view"
+          @click="isPdf ? (showChrome = !showChrome) : undefined"
+        >
+          <!-- For PDFs, clicking the canvas toggles chrome. EPUBs use the iframe click hook. -->
+        </div>
       </div>
     </main>
   </div>
@@ -344,6 +659,11 @@ const goTo = (href: string) => rendition.value?.display(href)
   height: 100% !important;
   border: none;
   background: transparent;
+}
+
+/* Enable simple dark mode for PDFs if wrapped in a pdf-canvas */
+html.dark .pdf-canvas {
+  filter: invert(1) hue-rotate(180deg);
 }
 
 /* Transitions */

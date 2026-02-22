@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   ],
 
   build: {
-    transpile: ['reka-ui']
+    transpile: ['reka-ui', 'pdfjs-dist']
   },
 
   devtools: {
