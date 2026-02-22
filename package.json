@@ -21,7 +21,13 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.15.1",
+    "@types/dom-mediacapture-record": "^1.0.22",
+    "@vite-pwa/assets-generator": "^1.0.2",
+    "@vite-pwa/nuxt": "^1.1.1",
+    "epubjs": "^0.3.93",
     "eslint": "^9.0.0",
+    "pdfjs-dist": "^5.4.624",
+    "pwa-asset-generator": "^8.1.2",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.2.4"
   },
@@ -42,6 +48,11 @@
       "allowedVersions": {
         "eslint": "^9.0.0"
       }
-    }
+    },
+    "onlyBuiltDependencies": [
+      "core-js",
+      "es5-ext",
+      "sharp"
+    ]
   }
 }

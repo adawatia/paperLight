@@ -1,4 +1,6 @@
-<script setup>
+<script setup lang="ts">
+import { onMounted } from 'vue'
+
 useHead({
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
@@ -12,6 +14,28 @@ useHead({
   htmlAttrs: {
     lang: 'en'
   }
+})
+
+// Setup global state for passing files captured from PWA or Share targets
+const sharedFile = useState<File | null>('shared-pwa-file', () => null)
+
+onMounted(() => {
+  // Handle PWA File Handlers (Desktop double-click)
+  if ('launchQueue' in window) {
+    ;(window as any).launchQueue.setConsumer(async (launchParams: any) => {
+      if (!launchParams.files || !launchParams.files.length) return
+      for (const handle of launchParams.files) {
+        const file = await handle.getFile()
+        if (file.type === 'application/pdf' || file.name.endsWith('.epub') || file.name.endsWith('.pdf')) {
+          sharedFile.value = file
+          break
+        }
+      }
+    })
+  }
+
+  // Quick fallback check if a service worker dropped a file into indexedDB for share_target (mobile)
+  // Usually share_target POST needs a specific route, but we'll prepare the hook state here
 })
 
 import pkg from '../package.json'
