@@ -79,7 +79,7 @@ const handleDrop = (event: DragEvent) => {
   />
   <div
     v-else
-    class="relative flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-var(--ui-header-height)-var(--ui-footer-height))] py-12"
+    class="relative flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-var(--ui-header-height)-var(--ui-footer-height))] py-4"
     @dragenter.prevent="handleDragEnter"
     @dragover.prevent
     @dragleave.prevent="handleDragLeave"
@@ -114,13 +114,13 @@ const handleDrop = (event: DragEvent) => {
     <UPageHero
       title="PaperLight"
       description="A distraction-free, browser-based reader designed for those who value speed and simplicity. Built to handle EPUBs and PDFs with zero overhead."
-      :ui="{ title: 'text-5xl sm:text-6xl lg:text-8xl font-extrabold tracking-tight drop-shadow-lg dark:drop-shadow-[0_4px_24px_rgba(255,255,255,0.1)] mb-4', description: 'text-lg lg:text-xl max-w-2xl mx-auto drop-shadow-sm', wrapper: 'flex flex-col items-center text-center px-2' }"
+      :ui="{ title: 'text-5xl sm:text-6xl lg:text-8xl font-extrabold tracking-tight drop-shadow-lg dark:drop-shadow-[0_4px_24px_rgba(255,255,255,0.1)] mb-4', description: 'text-lg lg:text-xl max-w-2xl mx-auto drop-shadow-sm', wrapper: 'flex flex-col items-center text-center px-2 !pt-4', container: '!py-2 !gap-2' }"
     >
       <template #headline>
-        <AppIcon class="w-32 h-32 sm:w-40 sm:h-40 mx-auto drop-shadow-2xl mb-8 transform hover:rotate-3 hover:scale-105 transition-transform duration-500 ease-out" />
+        <AppIcon class="w-32 h-32 sm:w-40 sm:h-40 mx-auto drop-shadow-2xl mb-2 transform hover:rotate-3 hover:scale-105 transition-transform duration-500 ease-out" />
       </template>
       <template #links>
-        <div class="flex flex-col items-center w-full mt-12 px-4 max-w-xl mx-auto">
+        <div class="flex flex-col items-center w-full mt-4 px-4 max-w-xl mx-auto">
           <!-- Main Dropzone Container -->
           <div
             class="relative group w-full flex flex-col items-center justify-center p-12 rounded-3xl border-2 border-dashed transition-all duration-300 bg-background/50 backdrop-blur-sm shadow-sm hover:shadow-lg"
