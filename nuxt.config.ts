@@ -7,6 +7,14 @@ export default defineNuxtConfig({
   ],
   ssr: false,
 
+  nitro: {
+    // Pre-render the SPA shell into /index.html so the service worker
+    // can pre-cache it and serve the app fully offline.
+    prerender: {
+      routes: ['/']
+    }
+  },
+
   devtools: {
     enabled: true
   },
@@ -93,8 +101,14 @@ export default defineNuxtConfig({
       }
     },
     workbox: {
-      navigateFallback: '/',
-      // Cache all app shell assets including woff2 fonts
+      // Point to the pre-rendered index.html so offline navigation works.
+      // Without this file in the precache, the SW has nothing to serve.
+      navigateFallback: '/index.html',
+      // Activate the new SW immediately without waiting for tabs to close
+      skipWaiting: true,
+      // Make the SW control all existing clients on activation
+      clientsClaim: true,
+      // Cache all app shell assets including woff2 fonts and html
       globPatterns: ['**/*.{js,css,html,png,svg,ico,woff,woff2}'],
       // Cache Google Fonts stylesheets (stale-while-revalidate)
       runtimeCaching: [
@@ -136,7 +150,7 @@ export default defineNuxtConfig({
     devOptions: {
       enabled: true,
       suppressWarnings: true,
-      navigateFallbackAllowlist: [/^\/$/],
+      navigateFallbackAllowlist: [/^\//],
       type: 'module'
     }
   }
