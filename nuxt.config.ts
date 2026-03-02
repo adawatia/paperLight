@@ -5,15 +5,8 @@ export default defineNuxtConfig({
     '@nuxt/ui',
     '@vite-pwa/nuxt'
   ],
-  ssr: false,
 
-  nitro: {
-    // Pre-render the SPA shell into /index.html so the service worker
-    // can pre-cache it and serve the app fully offline.
-    prerender: {
-      routes: ['/']
-    }
-  },
+  ssr: false,
 
   devtools: {
     enabled: true
@@ -26,6 +19,14 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2025-01-15',
+
+  nitro: {
+    // Pre-render the SPA shell into /index.html so the service worker
+    // can pre-cache it and serve the app fully offline.
+    prerender: {
+      routes: ['/']
+    }
+  },
 
   eslint: {
     config: {
@@ -110,7 +111,7 @@ export default defineNuxtConfig({
       clientsClaim: true,
       // Cache all app shell assets including woff2 fonts and html
       globPatterns: ['**/*.{js,css,html,png,svg,ico,woff,woff2}'],
-      // Cache Google Fonts stylesheets (stale-while-revalidate)
+      // Cache Google Fonts stylesheets (CacheFirst - fonts rarely change)
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
