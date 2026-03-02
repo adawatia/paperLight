@@ -32,8 +32,18 @@ export default defineNuxtConfig({
     manifest: {
       name: 'PaperLight Reader',
       short_name: 'PaperLight',
-      theme_color: '#000000',
+      // Match theme_color to app background for a seamless splash screen on mobile.
+      // Use a neutral dark value so it works in both light and dark OS modes.
+      theme_color: '#0a0a0a',
+      background_color: '#0a0a0a',
       description: 'Zero-overhead browser-based EPUB and PDF reader.',
+      // Prefer portrait, but allow any orientation
+      orientation: 'any',
+      // display_override: prefer window-controls-overlay on desktop, standalone elsewhere
+      display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+      display: 'standalone',
+      start_url: '/',
+      scope: '/',
       icons: [
         {
           src: 'pwa-64x64.png',
@@ -84,11 +94,44 @@ export default defineNuxtConfig({
     },
     workbox: {
       navigateFallback: '/',
-      globPatterns: ['**/*.{js,css,html,png,svg,ico}']
+      // Cache all app shell assets including woff2 fonts
+      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff,woff2}'],
+      // Cache Google Fonts stylesheets (stale-while-revalidate)
+      runtimeCaching: [
+        {
+          urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'google-fonts-cache',
+            expiration: {
+              maxEntries: 10,
+              maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+            },
+            cacheableResponse: {
+              statuses: [0, 200]
+            }
+          }
+        },
+        {
+          urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'gstatic-fonts-cache',
+            expiration: {
+              maxEntries: 20,
+              maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+            },
+            cacheableResponse: {
+              statuses: [0, 200]
+            }
+          }
+        }
+      ]
     },
     client: {
       installPrompt: true,
-      periodicSyncForUpdates: 20
+      // Check for updates every hour (3600 seconds), not every 20 seconds
+      periodicSyncForUpdates: 3600
     },
     devOptions: {
       enabled: true,

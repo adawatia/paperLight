@@ -5,7 +5,16 @@ import pkg from '../package.json'
 
 useHead({
   meta: [
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+    { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+    // iOS PWA: enables standalone mode when added to home screen
+    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    // iOS PWA: black-translucent makes status bar overlay the app (fullscreen feel)
+    { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+    { name: 'apple-mobile-web-app-title', content: 'PaperLight' },
+    // Android Chrome theme color (synced with manifest theme_color)
+    { name: 'theme-color', content: '#0a0a0a' },
+    // Prevent phone number detection on iOS
+    { name: 'format-detection', content: 'telephone=no' }
   ],
   link: [
     { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
@@ -60,6 +69,7 @@ useSeoMeta({
 
 <template>
   <VitePwaManifest />
+  <PwaInstall />
   <UApp>
     <UHeader :toggle="false">
       <template #left>
