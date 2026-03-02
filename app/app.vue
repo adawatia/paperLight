@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 
+import pkg from '../package.json'
+
 useHead({
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
@@ -24,6 +26,7 @@ const sharedFile = useState<File | null>('shared-pwa-file', () => null)
 onMounted(() => {
   // Handle PWA File Handlers (Desktop double-click)
   if ('launchQueue' in window) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(window as any).launchQueue.setConsumer(async (launchParams: any) => {
       if (!launchParams.files || !launchParams.files.length) return
       for (const handle of launchParams.files) {
@@ -39,8 +42,6 @@ onMounted(() => {
   // Quick fallback check if a service worker dropped a file into indexedDB for share_target (mobile)
   // Usually share_target POST needs a specific route, but we'll prepare the hook state here
 })
-
-import pkg from '../package.json'
 
 const title = 'PaperLight'
 const description = 'Paperlight is a distraction-free, browser-based reader designed for those who value speed and simplicity. Built to handle EPUBs and PDFs with zero overhead.'

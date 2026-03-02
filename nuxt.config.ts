@@ -1,15 +1,11 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  ssr: false,
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
     '@vite-pwa/nuxt'
   ],
-
-  build: {
-    transpile: ['reka-ui', 'pdfjs-dist']
-  },
+  ssr: false,
 
   devtools: {
     enabled: true
@@ -17,7 +13,9 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-
+  build: {
+    transpile: ['reka-ui', 'pdfjs-dist']
+  },
 
   compatibilityDate: '2025-01-15',
 

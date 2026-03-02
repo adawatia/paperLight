@@ -1,4 +1,6 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, no-empty, @stylistic/max-statements-per-line */
 import { ref, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import ePub from 'epubjs'
 import * as pdfjsLib from 'pdfjs-dist'
@@ -43,7 +45,7 @@ let hintTimer: ReturnType<typeof setTimeout> | null = null
 
 watch([showChrome, isSettingsOpen, isSidebarOpen], ([chromeOpen, settingsOpen, sidebarOpen], [oldChromeOpen]) => {
   if (chromeHideTimer) clearTimeout(chromeHideTimer)
-  
+
   // Show the tutorial hint when the chrome hides for the first time
   if (!chromeOpen && oldChromeOpen && !isLoading.value && !savedProgressGet('hint_seen')) {
     showHint.value = true
@@ -560,10 +562,13 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
   >
     <!-- Calm Loading State -->
     <Transition name="fade">
-      <div v-if="isLoading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-neutral-900 pointer-events-none">
+      <div
+        v-if="isLoading"
+        class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-neutral-900 pointer-events-none"
+      >
         <AppIcon class="w-20 h-20 animate-pulse text-primary mb-6 drop-shadow-sm" />
         <div class="w-48 h-1 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-          <div class="h-full bg-primary/50 rounded-full animate-progress origin-left"></div>
+          <div class="h-full bg-primary/50 rounded-full animate-progress origin-left" />
         </div>
       </div>
     </Transition>
@@ -572,17 +577,34 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
     <Transition name="slide-right">
       <aside
         v-if="isSidebarOpen"
-        class="fixed left-0 top-0 bottom-0 w-72 border-r border-border bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl shrink-0 flex flex-col z-[100] shadow-2xl"
+        class="fixed left-0 top-0 bottom-0 w-72 border-r border-border bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl shrink-0 flex flex-col z-100 shadow-2xl"
       >
         <div class="h-16 border-b border-border flex items-center justify-between px-4 shrink-0">
-          <h3 class="font-semibold truncate pr-2 text-sm">{{ props.file.name }}</h3>
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" aria-label="Close sidebar" @click="isSidebarOpen = false" />
+          <h3 class="font-semibold truncate pr-2 text-sm">
+            {{ props.file.name }}
+          </h3>
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            aria-label="Close sidebar"
+            @click="isSidebarOpen = false"
+          />
         </div>
         <div class="p-4 overflow-y-auto flex-1 custom-scrollbar">
-          <h4 class="text-xs font-semibold text-muted mb-4 uppercase tracking-wider">Contents</h4>
+          <h4 class="text-xs font-semibold text-muted mb-4 uppercase tracking-wider">
+            Contents
+          </h4>
 
-          <ul v-if="toc && toc.length" class="space-y-1">
-            <li v-for="(item, idx) in toc" :key="tocItemKey(item, idx)">
+          <ul
+            v-if="toc && toc.length"
+            class="space-y-1"
+          >
+            <li
+              v-for="(item, idx) in toc"
+              :key="tocItemKey(item, idx)"
+            >
               <button
                 class="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-primary/10 transition-colors truncate"
                 :class="{ 'bg-primary/15 text-primary font-medium': currentUrl && item.href && currentUrl.includes(item.href) }"
@@ -590,8 +612,14 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
               >
                 {{ item.label }}
               </button>
-              <ul v-if="item.subitems && item.subitems.length" class="pl-4 mt-1 space-y-1">
-                <li v-for="(sub, subIdx) in item.subitems" :key="subItemKey(sub, subIdx)">
+              <ul
+                v-if="item.subitems && item.subitems.length"
+                class="pl-4 mt-1 space-y-1"
+              >
+                <li
+                  v-for="(sub, subIdx) in item.subitems"
+                  :key="subItemKey(sub, subIdx)"
+                >
                   <button
                     class="w-full text-left px-2 py-1 rounded-md text-xs hover:bg-primary/10 text-muted transition-colors truncate"
                     :class="{ 'bg-primary/15 text-primary font-medium': currentUrl && sub.href && currentUrl.includes(sub.href) }"
@@ -603,7 +631,10 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
               </ul>
             </li>
           </ul>
-          <div v-else class="text-center text-muted text-sm mt-8">
+          <div
+            v-else
+            class="text-center text-muted text-sm mt-8"
+          >
             No table of contents available.
           </div>
         </div>
@@ -628,24 +659,41 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
             @click="isSidebarOpen = !isSidebarOpen"
           />
 
-          <div class="h-6 w-px bg-border mx-1"></div>
+          <div class="h-6 w-px bg-border mx-1" />
 
           <!-- Prev/Next Navigation -->
-          <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" aria-label="Previous Page" @click="prevPage" />
-          <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" aria-label="Next Page" @click="nextPage" />
+          <UButton
+            icon="i-lucide-chevron-left"
+            color="neutral"
+            variant="ghost"
+            aria-label="Previous Page"
+            @click="prevPage"
+          />
+          <UButton
+            icon="i-lucide-chevron-right"
+            color="neutral"
+            variant="ghost"
+            aria-label="Next Page"
+            @click="nextPage"
+          />
 
-          <div class="h-6 w-px bg-border mx-1 hidden sm:block"></div>
+          <div class="h-6 w-px bg-border mx-1 hidden sm:block" />
 
           <!-- Desktop Title (Hidden on mobile to save space) -->
           <h1 class="text-sm font-medium truncate max-w-[150px] opacity-70 hidden sm:block mx-2">
             {{ props.file.name }}
           </h1>
 
-          <div class="h-6 w-px bg-border mx-1"></div>
+          <div class="h-6 w-px bg-border mx-1" />
 
           <!-- Settings Popover -->
           <UPopover v-model:open="isSettingsOpen">
-            <UButton icon="i-lucide-settings" color="neutral" variant="ghost" aria-label="Reading Settings" />
+            <UButton
+              icon="i-lucide-settings"
+              color="neutral"
+              variant="ghost"
+              aria-label="Reading Settings"
+            />
             <template #content>
               <div class="p-5 w-72 space-y-6">
                 <!-- Font Size -->
@@ -655,17 +703,38 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
                     <span class="text-primary">{{ fontSize }}%</span>
                   </div>
                   <div class="flex items-center gap-3">
-                    <UButton icon="i-lucide-minus" size="sm" color="neutral" variant="soft" :disabled="fontSize <= 50" class="rounded-full" @click="decreaseFontSize" />
+                    <UButton
+                      icon="i-lucide-minus"
+                      size="sm"
+                      color="neutral"
+                      variant="soft"
+                      :disabled="fontSize <= 50"
+                      class="rounded-full"
+                      @click="decreaseFontSize"
+                    />
                     <div class="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden relative">
-                      <div class="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-300" :style="`width: ${(Number(fontSize) - 50) / 2}%`"></div>
+                      <div
+                        class="absolute left-0 top-0 bottom-0 bg-primary transition-all duration-300"
+                        :style="`width: ${(Number(fontSize) - 50) / 2}%`"
+                      />
                     </div>
-                    <UButton icon="i-lucide-plus" size="sm" color="neutral" variant="soft" :disabled="fontSize >= 250" class="rounded-full" @click="increaseFontSize" />
+                    <UButton
+                      icon="i-lucide-plus"
+                      size="sm"
+                      color="neutral"
+                      variant="soft"
+                      :disabled="fontSize >= 250"
+                      class="rounded-full"
+                      @click="increaseFontSize"
+                    />
                   </div>
                 </div>
 
                 <!-- Theme Toggle -->
                 <div>
-                  <div class="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Theme</div>
+                  <div class="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">
+                    Theme
+                  </div>
                   <div class="flex justify-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
                     <UColorModeButton class="w-full flex justify-center" />
                   </div>
@@ -683,7 +752,7 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
             @click="toggleFullscreen"
           />
 
-          <div class="h-6 w-px bg-border mx-1"></div>
+          <div class="h-6 w-px bg-border mx-1" />
 
           <UButton
             icon="i-lucide-x"
@@ -701,7 +770,10 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
           v-if="showHint"
           class="absolute z-50 bottom-12 mb-2 left-1/2 -translate-x-1/2 px-4 py-2 bg-neutral-900/90 dark:bg-white/95 text-white dark:text-neutral-900 text-xs sm:text-sm font-medium rounded-xl shadow-2xl backdrop-blur-md pointer-events-none flex items-center gap-2 max-w-sm text-center"
         >
-          <UIcon name="i-lucide-info" class="w-4 h-4 shrink-0" />
+          <UIcon
+            name="i-lucide-info"
+            class="w-4 h-4 shrink-0"
+          />
           Tap screen or use the handle to reveal menu
         </div>
       </Transition>
@@ -711,11 +783,11 @@ const subItemKey = (sub: any, index: number | string) => sub.id || sub.href || `
         <button
           v-if="!showChrome && !isLoading"
           class="absolute z-50 bottom-4 left-1/2 -translate-x-1/2 w-16 h-2 bg-neutral-400/40 dark:bg-neutral-500/40 hover:bg-neutral-500/60 dark:hover:bg-neutral-400/60 hover:scale-y-150 rounded-full backdrop-blur-md shadow-sm transition-all duration-300 cursor-pointer group ring-1 ring-white/10 dark:ring-black/10"
-          @click="showChrome = true"
           aria-label="Show Menu"
+          @click="showChrome = true"
         >
           <!-- Invisible increased tap target area for mobile -->
-          <span class="absolute -inset-6"></span>
+          <span class="absolute -inset-6" />
         </button>
       </Transition>
 

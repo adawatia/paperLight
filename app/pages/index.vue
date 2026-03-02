@@ -66,7 +66,9 @@ const handleDrop = (event: DragEvent) => {
   } else {
     dropError.value = `"${file.name}" is not supported. Please drop an EPUB or PDF file.`
     // Auto-clear the error after 4 seconds
-    setTimeout(() => { dropError.value = null }, 4000)
+    setTimeout(() => {
+      dropError.value = null
+    }, 4000)
   }
 }
 </script>
@@ -91,9 +93,16 @@ const handleDrop = (event: DragEvent) => {
       class="absolute inset-4 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-primary border-dashed rounded-3xl pointer-events-none"
     >
       <div class="flex flex-col items-center text-center">
-        <UIcon name="i-lucide-book-open" class="w-16 h-16 text-primary mb-4 animate-bounce" />
-        <h2 class="text-3xl font-bold text-primary">Drop Book Here</h2>
-        <p class="text-xl text-muted mt-2">Release your EPUB or PDF file to open</p>
+        <UIcon
+          name="i-lucide-book-open"
+          class="w-16 h-16 text-primary mb-4 animate-bounce"
+        />
+        <h2 class="text-3xl font-bold text-primary">
+          Drop Book Here
+        </h2>
+        <p class="text-xl text-muted mt-2">
+          Release your EPUB or PDF file to open
+        </p>
       </div>
     </div>
 
@@ -106,7 +115,10 @@ const handleDrop = (event: DragEvent) => {
         v-if="dropError"
         class="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-xl bg-red-500/90 text-white text-sm font-medium shadow-xl backdrop-blur-sm max-w-sm text-center pointer-events-none"
       >
-        <UIcon name="i-lucide-alert-circle" class="w-5 h-5 shrink-0" />
+        <UIcon
+          name="i-lucide-alert-circle"
+          class="w-5 h-5 shrink-0"
+        />
         {{ dropError }}
       </div>
     </Transition>
@@ -133,7 +145,7 @@ const handleDrop = (event: DragEvent) => {
               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               title="Select EPUB or PDF"
               @change="handleFileUpload"
-            />
+            >
 
             <UIcon
               name="i-lucide-book-dashed"
